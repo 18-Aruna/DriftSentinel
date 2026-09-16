@@ -1,0 +1,33 @@
+# Default values for sample-app
+# These values are used by the Helm templates to generate Kubernetes manifests.
+
+# Number of pod replicas
+replicaCount: 3
+
+# Container image settings
+image:
+  repository: nginx
+  tag: "1.21"
+  pullPolicy: IfNotPresent
+
+# Service settings
+service:
+  type: ClusterIP
+  port: 80
+
+# ConfigMap data — custom nginx configuration snippet
+configData:
+  app_mode: "production"
+  log_level: "info"
+
+# Resource requests and limits
+# NOTE: Intentionally left commented out so we can demonstrate
+# the "require-resource-limits" policy violation in Milestone 6.
+# Uncomment these to make the policy pass.
+# resources:
+#   requests:
+#     cpu: "100m"
+#     memory: "128Mi"
+#   limits:
+#     cpu: "200m"
+#     memory: "256Mi"

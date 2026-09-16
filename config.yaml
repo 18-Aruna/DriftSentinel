@@ -1,0 +1,34 @@
+# DriftSentinel Configuration
+# ============================
+# This file controls what DriftSentinel monitors and how it behaves.
+
+# Helm chart settings — defines the "desired state" source
+helm:
+  chart_path: "./charts/sample-app"      # Path to the Helm chart directory
+  release_name: "sample-app"             # Helm release name
+  namespace: "default"                   # Target Kubernetes namespace
+  values_file: null                      # Optional: path to a values override file
+
+# Kubernetes cluster settings
+kubernetes:
+  namespace: "default"                   # Namespace to scan for live resources
+  resource_types:                        # Resource types to collect and compare
+    - Deployment
+    - Service
+    - ConfigMap
+
+# Policy settings
+policies:
+  enabled: true                          # Enable/disable policy evaluation
+  file: "./policies/policies.yaml"       # Path to the policy definitions file
+
+# Auto-healing settings
+auto_heal:
+  enabled: false                         # DISABLED by default. Set to true to enable.
+  timeout: 60                            # Helm upgrade timeout in seconds
+
+# Reporting settings
+reporting:
+  cli: true                              # Print results to terminal
+  html: true                             # Generate HTML report
+  html_output_dir: "./reports"           # Directory for HTML reports

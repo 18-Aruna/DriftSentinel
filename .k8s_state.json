@@ -1,0 +1,99 @@
+{
+  "deployments": {
+    "sample-app-nginx": {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "sample-app-nginx",
+        "labels": {
+          "app": "sample-app-nginx",
+          "app.kubernetes.io/name": "sample-app",
+          "app.kubernetes.io/instance": "sample-app",
+          "app.kubernetes.io/managed-by": "Helm"
+        },
+        "namespace": "default"
+      },
+      "spec": {
+        "replicas": 3,
+        "selector": {
+          "matchLabels": {
+            "app": "sample-app-nginx"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "sample-app-nginx",
+              "app.kubernetes.io/name": "sample-app",
+              "app.kubernetes.io/instance": "sample-app"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "nginx",
+                "image": "nginx:1.21",
+                "imagePullPolicy": "IfNotPresent",
+                "ports": [
+                  {
+                    "containerPort": 80,
+                    "protocol": "TCP"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "sample-app-nginx": {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "sample-app-nginx",
+        "labels": {
+          "app": "sample-app-nginx",
+          "app.kubernetes.io/name": "sample-app",
+          "app.kubernetes.io/instance": "sample-app",
+          "app.kubernetes.io/managed-by": "Helm"
+        },
+        "namespace": "default"
+      },
+      "spec": {
+        "type": "ClusterIP",
+        "ports": [
+          {
+            "port": 80,
+            "targetPort": 80,
+            "protocol": "TCP"
+          }
+        ],
+        "selector": {
+          "app": "sample-app-nginx"
+        }
+      }
+    }
+  },
+  "configmaps": {
+    "sample-app-nginx-config": {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "sample-app-nginx-config",
+        "labels": {
+          "app": "sample-app-nginx",
+          "app.kubernetes.io/name": "sample-app",
+          "app.kubernetes.io/instance": "sample-app",
+          "app.kubernetes.io/managed-by": "Helm"
+        },
+        "namespace": "default"
+      },
+      "data": {
+        "app_mode": "production",
+        "log_level": "info"
+      }
+    }
+  }
+}

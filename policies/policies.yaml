@@ -1,0 +1,57 @@
+# DriftSentinel Compliance Policies
+# ==================================
+# These policies are evaluated against LIVE Kubernetes resources.
+# They are independent of drift detection.
+#
+# Supported operators:
+#   exists       — field must be present and non-null
+#   not_exists   — field must be absent or null
+#   equals       — field must equal the specified value
+#   not_equals   — field must not equal the specified value
+#   contains     — string field must contain the substring
+#   not_contains — string field must not contain the substring
+#   gte          — numeric field must be >= value
+#   lte          — numeric field must be <= value
+#
+# The [*] wildcard iterates over all items in a list.
+
+policies:
+  - name: require-resource-limits
+    description: "All containers must have CPU and memory limits defined"
+    severity: error
+    resource_types:
+      - Deployment
+    rule:
+      path: "spec.template.spec.containers[*].resources.limits"
+      operator: "exists"
+
+  - name: require-app-label
+    description: "All resources must have an 'app' label"
+    severity: warning
+    resource_types:
+      - Deployment
+      - Service
+      - ConfigMap
+    rule:
+      path: "metadata.labels.app"
+      operator: "exists"
+
+  - name: no-latest-tag
+    description: "Container images must not use the ':latest' tag"
+    severity: error
+    resource_types:
+      - Deployment
+    rule:
+      path: "spec.template.spec.containers[*].image"
+      operator: "not_contains"
+      value: ":latest"
+
+  - name: replicas-minimum
+    description: "Deployments should have at least 2 replicas"
+    severity: warning
+    resource_types:
+      - Deployment
+    rule:
+      path: "spec.replicas"
+      operator: "gte"
+      value: 2
