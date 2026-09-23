@@ -16,18 +16,28 @@ class CLIReporter:
         drifts: List[DriftResult],
         violations: List[PolicyViolation],
         heal_results: List[HealResult],
+        scan_status: str = "COMPLETED",
+        errors: List[str] = None,
     ) -> None:
         """Print formatted terminal report."""
+        errors = errors or []
         print()
         print("==========================================================================")
         print("                       DRIFTSENTINEL EXECUTION REPORT                      ")
         print("==========================================================================")
+        print(f"Scan Status              : {scan_status}")
+        if errors:
+            print("Execution Errors         :")
+            for error in errors:
+                print(f"  - {error}")
+        print()
         print()
 
         total = len(drifts)
         drifted_count = sum(1 for d in drifts if d.drifted)
         in_sync_count = total - drifted_count
         missing_count = sum(1 for d in drifts if d.missing_in_cluster)
+        unmanaged_count = sum(1 for d in drifts if d.extra_in_cluster)
 
         # 1. Resource Drift Summary
         print("--- Resource Drift Summary ---")
@@ -35,6 +45,7 @@ class CLIReporter:
         print(f"In Sync                 : {in_sync_count}")
         print(f"Drifted                 : {drifted_count}")
         print(f"Missing in Cluster      : {missing_count}")
+        print(f"Unmanaged in Cluster    : {unmanaged_count}")
         print()
 
         # 2. Detailed Drift Breakdown
@@ -45,7 +56,7 @@ class CLIReporter:
             print("-" * len(header))
             for res in drifts:
                 name_str = f"{res.resource_kind}/{res.resource_name}"
-                status = "MISSING" if res.missing_in_cluster else ("DRIFTED" if res.drifted else "IN_SYNC")
+                status = res.status
                 diff_count = len(res.diffs)
                 print(f"{name_str:<40} | {status:<15} | {diff_count}")
                 for diff in res.diffs:
@@ -91,6 +102,8 @@ def report(
     drifts: List[DriftResult],
     violations: List[PolicyViolation],
     heal_results: List[HealResult],
+    scan_status: str = "COMPLETED",
+    errors: List[str] = None,
 ) -> None:
     """Module-level helper for CLI report."""
-    CLIReporter.report(drifts, violations, heal_results)
+    CLIReporter.report(drifts, violations, heal_results, scan_status, errors)

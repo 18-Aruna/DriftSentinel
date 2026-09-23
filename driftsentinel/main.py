@@ -22,6 +22,7 @@ from driftsentinel.reporter.html_reporter import report as html_report
 def run_pipeline(config_path: str = "config.yaml") -> int:
     """Execute full DriftSentinel pipeline."""
     config = load_config(config_path)
+    execution_errors: List[str] = []
 
     # 1. Render Desired State
     renderer = HelmRenderer()
@@ -34,7 +35,7 @@ def run_pipeline(config_path: str = "config.yaml") -> int:
             values_file=config.helm.values_file,
         )
     except Exception as e:
-        print(f"[WARNING] Desired state rendering warning: {e}", file=sys.stderr)
+        execution_errors.append(f"Desired state rendering failed: {e}")
 
     # 2. Collect Live State
     collector = KubernetesCollector()
@@ -45,7 +46,7 @@ def run_pipeline(config_path: str = "config.yaml") -> int:
             resource_types=config.kubernetes.resource_types,
         )
     except Exception as e:
-        print(f"[WARNING] Live cluster collection warning: {e}", file=sys.stderr)
+        execution_errors.append(f"Live cluster collection failed: {e}")
 
     # 3. Detect Drift
     drifts: List[DriftResult] = detect_drift(desired_resources, live_resources)
@@ -67,6 +68,7 @@ def run_pipeline(config_path: str = "config.yaml") -> int:
             chart_path=config.helm.chart_path,
             namespace=config.helm.namespace,
             values_file=config.helm.values_file,
+            timeout=config.auto_heal.timeout,
         )
 
         # Verification: re-collect live state and re-detect drift
@@ -85,14 +87,30 @@ def run_pipeline(config_path: str = "config.yaml") -> int:
 
     # 6. Reporting
     if config.reporting.cli:
-        cli_report(drifts, violations, heal_results)
+        cli_report(
+            drifts,
+            violations,
+            heal_results,
+            scan_status="ERROR" if execution_errors else "COMPLETED",
+            errors=execution_errors,
+        )
 
     if config.reporting.html:
         out_path = os.path.join(config.reporting.html_output_dir, "drift_report_latest.html")
-        generated_file = html_report(drifts, violations, heal_results, output_path=out_path)
+        generated_file = html_report(
+            drifts,
+            violations,
+            heal_results,
+            output_path=out_path,
+            scan_status="ERROR" if execution_errors else "COMPLETED",
+            errors=execution_errors,
+        )
         print(f"[INFO] HTML report generated: {generated_file}")
 
-    # Return exit code: 0 = no drift, 1 = drift detected
+    if execution_errors:
+        return 2
+    if any(v.severity.lower() == "error" for v in violations):
+        return 3
     if any(d.drifted for d in drifts):
         return 1
     return 0

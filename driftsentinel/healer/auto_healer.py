@@ -103,8 +103,12 @@ class AutoHealer:
 
 
 def heal(
-    release_name: str, chart_path: str, namespace: str = "default", values_file: Optional[str] = None
+    release_name: str,
+    chart_path: str,
+    namespace: str = "default",
+    values_file: Optional[str] = None,
+    timeout: int = 60,
 ) -> HealResult:
     """Module-level helper for heal."""
     healer = AutoHealer()
-    return healer.heal(release_name, chart_path, namespace, values_file)
+    return healer.heal(release_name, chart_path, namespace, values_file, timeout)

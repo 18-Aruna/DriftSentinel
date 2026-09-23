@@ -38,3 +38,24 @@ def test_drift_detector_missing_in_cluster():
     assert len(results) == 1
     assert results[0].drifted
     assert results[0].missing_in_cluster
+
+
+def test_drift_detector_reports_unmanaged_live_resource():
+    live = [{"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "manual", "namespace": "default"}}]
+
+    results = detect_drift([], live)
+
+    assert len(results) == 1
+    assert results[0].drifted
+    assert results[0].extra_in_cluster
+    assert results[0].status == "UNMANAGED"
+
+
+def test_drift_detector_reports_live_only_fields():
+    desired = [{"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "config", "namespace": "default"}, "data": {"mode": "safe"}}]
+    live = [{"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "config", "namespace": "default"}, "data": {"mode": "safe", "extra": "value"}}]
+
+    results = detect_drift(desired, live)
+
+    assert results[0].drifted
+    assert any(diff.field_path == "['data']['extra']" for diff in results[0].diffs)

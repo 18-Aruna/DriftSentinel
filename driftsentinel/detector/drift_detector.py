@@ -67,8 +67,23 @@ class DriftDetector:
                 )
 
             elif live_manifest and not desired_manifest:
-                # Extra in cluster (untracked, skipped or reported)
-                continue
+                results.append(
+                    DriftResult(
+                        resource_kind=kind,
+                        resource_name=name,
+                        namespace=namespace,
+                        drifted=True,
+                        missing_in_cluster=False,
+                        extra_in_cluster=True,
+                        diffs=[
+                            FieldDiff(
+                                field_path="root",
+                                desired_value="Not defined in Helm chart",
+                                actual_value="Resource exists in cluster",
+                            )
+                        ],
+                    )
+                )
 
             else:
                 norm_desired = self.normalizer.normalize(desired_manifest)
@@ -116,6 +131,31 @@ class DriftDetector:
                         actual_value=None,
                     )
                 )
+
+        if "dictionary_item_added" in ddiff:
+            for item in ddiff["dictionary_item_added"]:
+                clean_path = str(item).replace("root", "", 1)
+                diff_list.append(
+                    FieldDiff(
+                        field_path=clean_path,
+                        desired_value=None,
+                        actual_value="[Present in cluster]",
+                    )
+                )
+
+        for category, desired_value, actual_value in (
+            ("iterable_item_removed", "[Present in Helm chart]", None),
+            ("iterable_item_added", None, "[Present in cluster]"),
+        ):
+            if category in ddiff:
+                for item in ddiff[category]:
+                    diff_list.append(
+                        FieldDiff(
+                            field_path=str(item).replace("root", "", 1),
+                            desired_value=desired_value,
+                            actual_value=actual_value,
+                        )
+                    )
 
         if "type_changes" in ddiff:
             for path, change in ddiff["type_changes"].items():

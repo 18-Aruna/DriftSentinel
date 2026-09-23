@@ -21,6 +21,16 @@ class DriftResult:
     drifted: bool
     missing_in_cluster: bool
     diffs: List[FieldDiff] = field(default_factory=list)
+    extra_in_cluster: bool = False
+
+    @property
+    def status(self) -> str:
+        """Return a stable status label for reports and integrations."""
+        if self.missing_in_cluster:
+            return "MISSING"
+        if self.extra_in_cluster:
+            return "UNMANAGED"
+        return "DRIFTED" if self.drifted else "IN_SYNC"
 
 
 @dataclass

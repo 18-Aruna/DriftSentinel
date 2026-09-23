@@ -10,6 +10,10 @@ from typing import List, Optional
 import yaml
 
 
+class ConfigError(ValueError):
+    """Raised when configuration cannot safely be used for a scan."""
+
+
 @dataclass
 class HelmConfig:
     chart_path: str = "./charts/sample-app"
@@ -97,10 +101,35 @@ def load_config(config_path: str = "config.yaml") -> Config:
         html_output_dir=rep_data.get("html_output_dir", "./reports"),
     )
 
-    return Config(
+    config = Config(
         helm=helm_cfg,
         kubernetes=k8s_cfg,
         policies=policy_cfg,
         auto_heal=heal_cfg,
         reporting=rep_cfg,
     )
+    validate_config(config)
+    return config
+
+
+def validate_config(config: Config) -> None:
+    """Validate settings that would otherwise produce misleading scan results."""
+    if not config.helm.chart_path:
+        raise ConfigError("helm.chart_path must be provided")
+    if not os.path.isdir(config.helm.chart_path):
+        raise ConfigError(f"Helm chart path does not exist: {config.helm.chart_path}")
+    if config.helm.values_file and not os.path.isfile(config.helm.values_file):
+        raise ConfigError(f"Values file does not exist: {config.helm.values_file}")
+    if not config.helm.release_name or not config.helm.namespace:
+        raise ConfigError("Helm release_name and namespace must be provided")
+    if not config.kubernetes.namespace:
+        raise ConfigError("kubernetes.namespace must be provided")
+    if not config.kubernetes.resource_types or any(
+        not isinstance(resource_type, str) or not resource_type
+        for resource_type in config.kubernetes.resource_types
+    ):
+        raise ConfigError("kubernetes.resource_types must contain resource names")
+    if config.auto_heal.timeout <= 0:
+        raise ConfigError("auto_heal.timeout must be greater than zero")
+    if config.policies.enabled and not os.path.isfile(config.policies.file):
+        raise ConfigError(f"Policy file does not exist: {config.policies.file}")

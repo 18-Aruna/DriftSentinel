@@ -72,12 +72,56 @@ tests/                  Unit and integration tests
 pytest tests/ -v
 ```
 
+## Live Dashboard
+
+Start a local dashboard that reruns the scan and refreshes the visual report automatically:
+
+```bash
+python -m driftsentinel.live_dashboard
+```
+
+Open `http://127.0.0.1:8765` in a browser. The default refresh interval is 10 seconds. It can be changed with `--interval`, and a different configuration or port can be supplied:
+
+```bash
+python -m driftsentinel.live_dashboard --config config.yaml --port 8766 --interval 5
+```
+
+The dashboard is intended for local demonstrations. It binds to localhost by default and does not provide authentication or multi-user access.
+
+### Local Simulator Demo
+
+When using the included local simulator instead of a real Minikube cluster, start the API server and deploy the sample release before opening the dashboard:
+
+```powershell
+# Terminal 1
+python k8s_server.py 6443
+
+# Terminal 2
+.\bin\helm.cmd install sample-app .\charts\sample-app --namespace default
+python -m driftsentinel.live_dashboard
+```
+
+Keep the API server and dashboard terminals running. If the API server is stopped, the dashboard correctly reports a scan error because no live Kubernetes state can be collected.
+
+## Scan Results and Exit Codes
+
+DriftSentinel reports unmanaged live resources in addition to modified and missing resources. A scan status of `ERROR` means the desired or live state could not be collected; it is not treated as a clean scan.
+
+Exit codes are suitable for CI/CD gates:
+
+- `0` — scan completed with no drift or blocking policy violations
+- `1` — drift detected
+- `2` — scan or configuration error
+- `3` — an `error` severity policy violation was found
+
 ## Limitations
 
-- Supports Deployments, Services, and ConfigMaps only (no CRDs)
-- Designed for local Minikube clusters only
+- The built-in collector supports Deployments, Services, and ConfigMaps only (no CRDs)
+- The included simulator is designed for local Minikube-style demonstrations
 - No persistent drift history (each run is independent)
 - Auto-healing only supports Helm-based reconciliation
+
+For production use, the next major steps are a dynamic Kubernetes client for arbitrary resources, persistent scan history, watch mode, and approval-controlled healing.
 
 ## License
 

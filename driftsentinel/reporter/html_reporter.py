@@ -19,6 +19,8 @@ class HTMLReporter:
         violations: List[PolicyViolation],
         heal_results: List[HealResult],
         output_path: str = "./reports/drift_report.html",
+        scan_status: str = "COMPLETED",
+        errors: List[str] = None,
     ) -> str:
         """Render HTML string and save to file. Returns output file path."""
         out_dir = os.path.dirname(output_path)
@@ -26,7 +28,9 @@ class HTMLReporter:
             os.makedirs(out_dir, exist_ok=True)
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        html_content = HTMLReporter.render_html(drifts, violations, heal_results, timestamp)
+        html_content = HTMLReporter.render_html(
+            drifts, violations, heal_results, timestamp, scan_status, errors
+        )
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
@@ -39,15 +43,19 @@ class HTMLReporter:
         violations: List[PolicyViolation],
         heal_results: List[HealResult],
         timestamp: str,
+        scan_status: str = "COMPLETED",
+        errors: List[str] = None,
     ) -> str:
         """Construct full HTML document string with high-contrast dark theme."""
+        errors = errors or []
         total = len(drifts)
         drifted_count = sum(1 for d in drifts if d.drifted)
         in_sync_count = total - drifted_count
+        unmanaged_count = sum(1 for d in drifts if d.extra_in_cluster)
 
         drift_rows = ""
         for res in drifts:
-            status_text = "MISSING" if res.missing_in_cluster else ("DRIFTED" if res.drifted else "IN_SYNC")
+            status_text = res.status
             status_class = "badge-pass" if status_text == "IN_SYNC" else "badge-fail"
 
             diff_text = ""
@@ -88,6 +96,11 @@ class HTMLReporter:
         if not policy_rows:
             policy_rows = "<tr><td colspan='4' class='text-slate-400'><em>No policy violations detected.</em></td></tr>"
 
+        error_section = ""
+        if errors:
+            error_items = "".join(f"<li>{html.escape(error)}</li>" for error in errors)
+            error_section = f"<div class='card'><h2>Execution Errors</h2><ul>{error_items}</ul></div>"
+
         heal_section = ""
         if heal_results:
             heal_section = "<div class='card'><h2>Auto-Healing Results</h2>"
@@ -120,7 +133,7 @@ class HTMLReporter:
         .header {{ background: #0f172a; color: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 24px; }}
         .header h1 {{ margin: 0 0 8px 0; font-size: 28px; font-weight: 800; }}
         .header p {{ margin: 0; color: #94a3b8; font-size: 14px; }}
-        .summary-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }}
+        .summary-grid {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }}
         .card {{ background: #0f172a; padding: 24px; border-radius: 12px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); margin-bottom: 24px; }}
         .card h2 {{ color: #ffffff; font-size: 18px; margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; }}
         .metric-card {{ background: #0f172a; padding: 18px; border-radius: 12px; border: 1px solid #1e293b; text-align: center; }}
@@ -140,13 +153,14 @@ class HTMLReporter:
     <div class="container">
         <div class="header">
             <h1>DriftSentinel Report</h1>
-            <p>Generated at {html.escape(timestamp)}</p>
+            <p>Generated at {html.escape(timestamp)} | Status: <strong>{html.escape(scan_status)}</strong></p>
         </div>
 
         <div class="summary-grid">
             <div class="metric-card"><div class="title">Total Scanned</div><div class="number">{total}</div></div>
             <div class="metric-card"><div class="title">In Sync</div><div class="number" style="color: #34d399;">{in_sync_count}</div></div>
             <div class="metric-card"><div class="title">Drifted</div><div class="number" style="color: #f87171;">{drifted_count}</div></div>
+            <div class="metric-card"><div class="title">Unmanaged</div><div class="number" style="color: #fb923c;">{unmanaged_count}</div></div>
             <div class="metric-card"><div class="title">Policy Violations</div><div class="number" style="color: #fbbf24;">{len(violations)}</div></div>
         </div>
 
@@ -170,6 +184,7 @@ class HTMLReporter:
             </table>
         </div>
 
+        {error_section}
         {heal_section}
     </div>
 </body>
@@ -182,6 +197,10 @@ def report(
     violations: List[PolicyViolation],
     heal_results: List[HealResult],
     output_path: str = "./reports/drift_report.html",
+    scan_status: str = "COMPLETED",
+    errors: List[str] = None,
 ) -> str:
     """Module-level helper for HTML report."""
-    return HTMLReporter.report(drifts, violations, heal_results, output_path)
+    return HTMLReporter.report(
+        drifts, violations, heal_results, output_path, scan_status, errors
+    )
